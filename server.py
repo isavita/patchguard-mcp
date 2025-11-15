@@ -15,10 +15,10 @@ except ImportError:
     litellm_completion = None
 
 # LLM configuration
-# LLM_MODEL = "gemini/gemini-2.5-pro"
+LLM_MODEL = "gemini/gemini-2.5-pro"
 # LLM_MODEL = "gemini/gemini-2.5-flash"
 # LLM_MODEL = "gemini/gemini-2.5-flash-lite"
-LLM_MODEL = "groq/moonshotai/kimi-k2-instruct-0905"
+# LLM_MODEL = "groq/moonshotai/kimi-k2-instruct-0905"
 LLM_TEMPERATURE = 0.1
 LLM_MAX_TOKENS = 4096
 
