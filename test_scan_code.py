@@ -1,4 +1,8 @@
-from server import scan_code_impl
+import server
+from server import scan_code_impl, LLM_TEMPERATURE, LLM_MAX_TOKENS
+
+# Override model to use faster model for testing
+server.LLM_MODEL = "gemini/gemini-2.5-flash-lite"
 
 
 def test_scan_code_basic_shape():
@@ -44,3 +48,14 @@ def test_non_python_language_error():
 
     assert "error" in result
     assert result["error"].startswith("Only Python is supported")
+
+
+def test_with_faster_model():
+    """
+    Verify that the faster model is being used for testing.
+    """
+    # Verify the model override is in place
+    assert server.LLM_MODEL == "gemini/gemini-2.5-flash-lite"
+    assert LLM_TEMPERATURE is not None
+    assert isinstance(LLM_TEMPERATURE, float)
+    assert isinstance(LLM_MAX_TOKENS, int)

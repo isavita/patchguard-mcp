@@ -14,6 +14,11 @@ try:
 except ImportError:
     litellm_completion = None
 
+# LLM configuration
+LLM_MODEL = "gemini/gemini-2.5-pro"
+LLM_TEMPERATURE = 0.1
+LLM_MAX_TOKENS = 4096
+
 mcp = FastMCP("patchguard-mcp")
 
 
@@ -68,7 +73,7 @@ def _run_llm_review(code: str) -> str:
 
     try:
         response = litellm_completion(
-            model="gemini/gemini-2.5-pro",
+            model=LLM_MODEL,
             messages=[
                 {
                     "role": "system",
@@ -86,8 +91,8 @@ def _run_llm_review(code: str) -> str:
                     ),
                 },
             ],
-            max_tokens=4096,
-            temperature=0.1,
+            max_tokens=LLM_MAX_TOKENS,
+            temperature=LLM_TEMPERATURE,
         )
 
         # LiteLLM usually returns OpenAI-style responses
