@@ -1,19 +1,46 @@
 # PatchGuard MCP
 
-You have access to an MCP server named `patchguard` with a tool `scan_code(language, code)`.
+You have access to an MCP server named `patchguard` with the tool:
+
+```
+scan_code(language, code)
+```
+
+It performs:
+
+* `security_static_analysis`
+* `style_static_analysis`
+* `llm_review` (LLM-based security/code-quality review)
+
+Outputs are universal for all languages.
+
+---
 
 ## Required behavior
 
-Whenever you:
-- generate new Python code, or
-- significantly modify an existing Python file,
+Whenever you generate or modify **any source code**, you MUST:
 
-you MUST:
+1. Call `scan_code` with:
 
-1. Call the `scan_code` MCP tool with:
-   - language = "python"
-   - code = the full contents of the file
-2. Inspect `bandit_output` for any security issues (e.g. SQL injection, eval, etc.).
-3. If there are issues, fix the code and call `scan_code` again until no high/medium severity problems remain.
+   * `language` = the code’s language (e.g., `"python"`, `"javascript"`, `"go"`)
+   * `code` = the full file contents
 
-Always mention in your response when you ran `scan_code` and summarize any issues found.
+2. Read all returned fields:
+
+   * `security_static_analysis`
+   * `style_static_analysis`
+   * `llm_review`
+
+3. Fix any issues the tool reports, especially security risks.
+
+4. Re-run `scan_code` after making changes until no significant issues remain.
+
+---
+
+## Response requirements
+
+* Always state when you ran `scan_code`.
+* Summarize the issues found.
+* Provide updated code reflecting the fixes.
+
+This ensures all generated code is checked and improved by PatchGuard.
