@@ -8,10 +8,12 @@ def test_scan_code_basic_shape():
     # Keys exist
     assert "bandit_output" in result
     assert "ruff_output" in result
+    assert "llm_review" in result
 
-    # Both are strings (may be empty if no issues)
+    # Types
     assert isinstance(result["bandit_output"], str)
     assert isinstance(result["ruff_output"], str)
+    assert isinstance(result["llm_review"], str)
 
 
 def test_detects_security_issue_in_bandit_output():
@@ -33,8 +35,7 @@ def run_query(user_input):
     assert isinstance(bandit_output, str)
     assert bandit_output != ""
 
-    # Make the assertion a bit robust across versions:
-    # usually includes B608 and/or "SQL injection".
+    # Usually includes B608 and/or "SQL injection" for this pattern
     assert ("B608" in bandit_output) or ("SQL injection" in bandit_output)
 
 

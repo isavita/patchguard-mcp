@@ -2,3 +2,4 @@ mcp[cli]
 bandit
 ruff
 pytest
+litellm

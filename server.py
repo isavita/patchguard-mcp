@@ -1,11 +1,18 @@
 from __future__ import annotations
 
+import os
 import subprocess
 import tempfile
 from pathlib import Path
 from typing import Literal
 
 from mcp.server.fastmcp import FastMCP
+
+# Optional: LiteLLM for LLM-based review
+try:
+    from litellm import completion as litellm_completion
+except ImportError:
+    litellm_completion = None
 
 mcp = FastMCP("patchguard-mcp")
 
@@ -21,7 +28,6 @@ def _run_bandit(path: Path) -> str:
         text=True,
     )
 
-    # Minimal processing: prefer stdout, fall back to stderr
     if proc.stdout:
         return proc.stdout.strip()
     if proc.stderr:
@@ -40,7 +46,6 @@ def _run_ruff(path: Path) -> str:
         text=True,
     )
 
-    # Minimal processing: prefer stdout, fall back to stderr
     if proc.stdout:
         return proc.stdout.strip()
     if proc.stderr:
@@ -48,11 +53,70 @@ def _run_ruff(path: Path) -> str:
     return ""
 
 
+def _run_llm_review(code: str) -> str:
+    """
+    Optional LLM-based review using LiteLLM and Gemini.
+    Hardcoded model: gemini/gemini-2.5-pro.
+
+    Returns a short text summary or a fallback message if unavailable.
+    """
+    if litellm_completion is None:
+        return "LLM review not available: litellm is not installed in this environment."
+
+    if not os.getenv("GEMINI_API_KEY"):
+        return "LLM review not available: GEMINI_API_KEY environment variable is not set."
+
+    try:
+        response = litellm_completion(
+            model="gemini/gemini-2.5-pro",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a senior security engineer reviewing Python code. "
+                        "Focus on security vulnerabilities, unsafe patterns, and clear remediation advice."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        "Review the following Python code for security issues, bad practices, "
+                        "and any risky patterns. Reply in a short, concise bullet list.\n\n"
+                        f"```python\n{code}\n```"
+                    ),
+                },
+            ],
+            max_tokens=4096,
+            temperature=0.1,
+        )
+
+        # LiteLLM usually returns OpenAI-style responses
+        msg = response["choices"][0]["message"]["content"]
+
+        # Some providers may return content parts as a list
+        if isinstance(msg, list):
+            parts = []
+            for part in msg:
+                if isinstance(part, dict) and "text" in part:
+                    parts.append(part["text"])
+                else:
+                    parts.append(str(part))
+            msg = "".join(parts)
+
+        return str(msg).strip()
+
+    except Exception as e:
+        return f"LLM review not available: {type(e).__name__}: {e}"
+
+
 def scan_code_impl(language: str, code: str) -> dict:
     """
     Core logic used by both the MCP tool and demo/tests.
 
-    Returns raw bandit and ruff outputs so the LLM can interpret them.
+    Returns:
+      - bandit_output: raw bandit text
+      - ruff_output: raw ruff text
+      - llm_review: optional LLM-based review summary
     """
     if language != "python":
         return {
@@ -65,10 +129,12 @@ def scan_code_impl(language: str, code: str) -> dict:
 
         bandit_output = _run_bandit(path)
         ruff_output = _run_ruff(path)
+        llm_review = _run_llm_review(code)
 
         return {
             "bandit_output": bandit_output,
             "ruff_output": ruff_output,
+            "llm_review": llm_review,
         }
 
 
@@ -83,7 +149,8 @@ def scan_code(
     The MCP result looks like:
     {
         "bandit_output": "<raw bandit text>",
-        "ruff_output": "<raw ruff text>"
+        "ruff_output": "<raw ruff text>",
+        "llm_review": "<short LLM review or fallback message>"
     }
     """
     return scan_code_impl(language, code)
