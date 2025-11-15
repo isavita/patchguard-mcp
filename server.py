@@ -16,9 +16,9 @@ except ImportError:
 
 # LLM configuration
 # LLM_MODEL = "gemini/gemini-2.5-pro"
-# LLM_MODEL = "geminigemini-2.5-flash"
-LLM_MODEL = "gemini/gemini-2.5-flash-lite"
-# LLM_MODEL = "groq/moonshotai/kimi-k2-instruct-0905"
+# LLM_MODEL = "gemini/gemini-2.5-flash"
+# LLM_MODEL = "gemini/gemini-2.5-flash-lite"
+LLM_MODEL = "groq/moonshotai/kimi-k2-instruct-0905"
 LLM_TEMPERATURE = 0.1
 LLM_MAX_TOKENS = 4096
 
@@ -88,8 +88,10 @@ def _run_llm_review(language: str, code: str) -> str:
                     "role": "user",
                     "content": (
                         f"Language: {language}\n\n"
-                        "Review the following code for security issues, bad practices, "
-                        "and any risky patterns. Reply in a short, concise bullet list.\n\n"
+                        "Review the following code for security issues and risky patterns.\n"
+                        "Respond with AT MOST 3 bullet points.\n"
+                        "- Each bullet MUST be concise (ideally under 120 characters).\n"
+                        "- Do NOT add any intro or outro text, only the bullets.\n\n"
                         f"```{language}\n{code}\n```"
                     ),
                 },
@@ -145,6 +147,15 @@ def scan_code_impl(language: str, code: str) -> dict:
         if language_normalized == "python":
             security_static_output = _run_bandit(path)
             style_static_output = _run_ruff(path)
+
+            # Strip the temp path for cleaner output
+            temp_path_str = str(path)
+            security_static_output = security_static_output.replace(
+                temp_path_str, "snippet.py"
+            )
+            style_static_output = style_static_output.replace(
+                temp_path_str, "snippet.py"
+            )
 
     llm_review = _run_llm_review(language_normalized, code)
 
