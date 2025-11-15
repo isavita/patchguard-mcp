@@ -9,18 +9,19 @@ def test_scan_code_basic_shape():
     code = "print('hello world')\n"
     result = scan_code_impl("python", code)
 
-    # Keys exist
-    assert "bandit_output" in result
-    assert "ruff_output" in result
+    # Top-level keys
+    assert result["language"] == "python"
+    assert "security_static_analysis" in result
+    assert "style_static_analysis" in result
     assert "llm_review" in result
 
     # Types
-    assert isinstance(result["bandit_output"], str)
-    assert isinstance(result["ruff_output"], str)
+    assert isinstance(result["security_static_analysis"], str)
+    assert isinstance(result["style_static_analysis"], str)
     assert isinstance(result["llm_review"], str)
 
 
-def test_detects_security_issue_in_bandit_output():
+def test_detects_security_issue_in_security_static_analysis():
     bad_code = """
 import sqlite3
 
@@ -33,29 +34,35 @@ def run_query(user_input):
 """
     result = scan_code_impl("python", bad_code)
 
-    bandit_output = result["bandit_output"]
+    sec_output = result["security_static_analysis"]
 
-    # We expect Bandit to report at least something for this code
-    assert isinstance(bandit_output, str)
-    assert bandit_output != ""
+    # We expect the security scan to report something for this code
+    assert isinstance(sec_output, str)
+    assert sec_output != ""
 
     # Usually includes B608 and/or "SQL injection" for this pattern
-    assert ("B608" in bandit_output) or ("SQL injection" in bandit_output)
+    assert ("B608" in sec_output) or ("SQL injection" in sec_output)
 
 
-def test_non_python_language_error():
+def test_non_python_language_universal_shape():
+    """
+    For non-Python languages, we still get the same universal structure.
+    Static analysis fields may be empty, but are present and strings.
+    """
     result = scan_code_impl("javascript", "console.log('hello');")
 
-    assert "error" in result
-    assert result["error"].startswith("Only Python is supported")
+    assert result["language"] == "javascript"
+    assert "security_static_analysis" in result
+    assert "style_static_analysis" in result
+    assert isinstance(result["security_static_analysis"], str)
+    assert isinstance(result["style_static_analysis"], str)
+    assert isinstance(result["llm_review"], str)
 
 
 def test_with_faster_model():
     """
     Verify that the faster model is being used for testing.
     """
-    # Verify the model override is in place
     assert server.LLM_MODEL == "gemini/gemini-2.5-flash-lite"
-    assert LLM_TEMPERATURE is not None
     assert isinstance(LLM_TEMPERATURE, float)
     assert isinstance(LLM_MAX_TOKENS, int)

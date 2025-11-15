@@ -24,7 +24,7 @@ mcp = FastMCP("patchguard-mcp")
 
 def _run_bandit(path: Path) -> str:
     """
-    Run bandit with text output and return raw output (stdout or stderr).
+    Security-oriented static analysis using Bandit.
     Command: bandit -f txt -q <FILE_PATH>
     """
     proc = subprocess.run(
@@ -42,7 +42,7 @@ def _run_bandit(path: Path) -> str:
 
 def _run_ruff(path: Path) -> str:
     """
-    Run ruff with concise output and return raw output (stdout or stderr).
+    Style/lint-oriented static analysis using Ruff.
     Command: ruff check --output-format concise <FILE_PATH>
     """
     proc = subprocess.run(
@@ -58,10 +58,9 @@ def _run_ruff(path: Path) -> str:
     return ""
 
 
-def _run_llm_review(code: str) -> str:
+def _run_llm_review(language: str, code: str) -> str:
     """
     Optional LLM-based review using LiteLLM and Gemini.
-    Hardcoded model: gemini/gemini-2.5-pro.
 
     Returns a short text summary or a fallback message if unavailable.
     """
@@ -78,16 +77,17 @@ def _run_llm_review(code: str) -> str:
                 {
                     "role": "system",
                     "content": (
-                        "You are a senior security engineer reviewing Python code. "
+                        "You are a senior security engineer reviewing source code. "
                         "Focus on security vulnerabilities, unsafe patterns, and clear remediation advice."
                     ),
                 },
                 {
                     "role": "user",
                     "content": (
-                        "Review the following Python code for security issues, bad practices, "
+                        f"Language: {language}\n\n"
+                        "Review the following code for security issues, bad practices, "
                         "and any risky patterns. Reply in a short, concise bullet list.\n\n"
-                        f"```python\n{code}\n```"
+                        f"```{language}\n{code}\n```"
                     ),
                 },
             ],
@@ -95,7 +95,6 @@ def _run_llm_review(code: str) -> str:
             temperature=LLM_TEMPERATURE,
         )
 
-        # LiteLLM usually returns OpenAI-style responses
         msg = response["choices"][0]["message"]["content"]
 
         # Some providers may return content parts as a list
@@ -119,42 +118,64 @@ def scan_code_impl(language: str, code: str) -> dict:
     Core logic used by both the MCP tool and demo/tests.
 
     Returns:
-      - bandit_output: raw bandit text
-      - ruff_output: raw ruff text
+      - language: normalized language string
+      - security_static_analysis: raw text from security-oriented static tools
+      - style_static_analysis: raw text from style/lint-oriented tools
       - llm_review: optional LLM-based review summary
+
+    For now:
+      - Python: bandit (security) + ruff (style) + LLM review
+      - Other languages: only LLM review (static outputs empty strings)
     """
-    if language != "python":
-        return {
-            "error": "Only Python is supported in this MVP.",
-        }
+    language_normalized = language.strip().lower()
+
+    security_static_output = ""
+    style_static_output = ""
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        path = Path(tmpdir) / "snippet.py"
+        path = Path(tmpdir) / "snippet"
+        if language_normalized == "python":
+            path = path.with_suffix(".py")
+
         path.write_text(code)
 
-        bandit_output = _run_bandit(path)
-        ruff_output = _run_ruff(path)
-        llm_review = _run_llm_review(code)
+        if language_normalized == "python":
+            security_static_output = _run_bandit(path)
+            style_static_output = _run_ruff(path)
 
-        return {
-            "bandit_output": bandit_output,
-            "ruff_output": ruff_output,
-            "llm_review": llm_review,
-        }
+    llm_review = _run_llm_review(language_normalized, code)
+
+    return {
+        "language": language_normalized,
+        "security_static_analysis": security_static_output,
+        "style_static_analysis": style_static_output,
+        "llm_review": llm_review,
+    }
 
 
 @mcp.tool()
 def scan_code(
-    language: Literal["python"],
+    language: Literal[
+        "python",
+        "javascript",
+        "typescript",
+        "go",
+        "ruby",
+        "java",
+        "csharp",
+        "php",
+        "other",
+    ],
     code: str,
 ) -> dict:
     """
     MCP tool wrapper that calls the core implementation.
 
-    The MCP result looks like:
+    The MCP result is universal for any language:
     {
-        "bandit_output": "<raw bandit text>",
-        "ruff_output": "<raw ruff text>",
+        "language": "<normalized language>",
+        "security_static_analysis": "<security-oriented static analysis output>",
+        "style_static_analysis": "<style/lint static analysis output>",
         "llm_review": "<short LLM review or fallback message>"
     }
     """
