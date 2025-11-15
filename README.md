@@ -44,7 +44,7 @@ gemini --allowed-mcp-server-names patchguard --approval-mode yolo
 
 Inside Gemini CLI:
 
-> Write a function that runs a user-provided shell command with a 5-second timeout.
+> Write a function that runs a user-provided shell command with a 100ms timeout.
 
 Gemini will:
 
