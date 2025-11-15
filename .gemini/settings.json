@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "patchguard": {
+      "command": "python",
+      "args": [
+        "server.py"
+      ]
+    }
+  }
+}
