@@ -1,0 +1,4 @@
+mcp[cli]
+bandit
+ruff
+pytest
